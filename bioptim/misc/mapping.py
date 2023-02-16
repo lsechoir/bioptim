@@ -280,6 +280,8 @@ class NodeMappingIndex():
         else:
             self.variable_mapped_index = variable_mapped_index
 
+            ##### Appliquer le mapping seulement au moment de l'utiliser au lieu de le stoker #####
+
 class NodeMappingList(OptionDict):
     def __init__(self):
         super(NodeMappingList, self).__init__()

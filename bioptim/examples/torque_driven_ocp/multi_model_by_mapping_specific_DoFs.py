@@ -1,6 +1,6 @@
 import numpy as np
 from bioptim import (
-    BiorbdModel,
+    MultiBiorbdModel,
     OptimalControlProgram,
     DynamicsList,
     DynamicsFcn,
@@ -20,7 +20,7 @@ def prepare_ocp(
     biorbd_model_path_modified_inertia: str = "models/triple_pendulum_modified_inertia.bioMod",
     n_shooting: tuple = (40, 40),
 ) -> OptimalControlProgram:
-    bio_model = (BiorbdModel(biorbd_model_path), BiorbdModel(biorbd_model_path_modified_inertia))
+    bio_model = MultiBiorbdModel((biorbd_model_path, biorbd_model_path_modified_inertia))
 
     # Problem parameters
     final_time = (1.5, 1.5)
@@ -28,75 +28,42 @@ def prepare_ocp(
 
     # Variable Mapping
     tau_mappings = BiMappingList()
-    tau_mappings.add("tau", [None, 0, 1], [1, 2], phase=0)
-    tau_mappings.add("tau", [None, 0, 1], [1, 2], phase=1)
-
-    # Parameters mapping
-    parameter_mappings = BiMappingList()
-    parameter_mappings.add("time", [0, 0], [0])
-
-    # Change name to phase mapping
-    # Phase mapping
-    node_mappings = NodeMappingList()
-    # The node mapping is applied on the index [1] of [None, 0, 1] in the tau_mappings (so to the first active DoF)
-    node_mappings.add("tau", map_controls=True, phase_pre=0, phase_post=1, index=[1], variable_mapping=tau_mappings)
+    tau_mappings.add("tau", [None, 0, 1, None, 0, 2], [1, 2, 5], phase=0)
 
     ##### Add a check for no mapping of 'q'q on phase 0 while mapping 'qdot' on phase 3 #####
 
     # Add objective functions
     objective_functions = ObjectiveList()
     objective_functions.add(ObjectiveFcn.Lagrange.MINIMIZE_CONTROL, key="tau", weight=1, phase=0)
-    objective_functions.add(ObjectiveFcn.Lagrange.MINIMIZE_CONTROL, key="tau", weight=1, phase=1)
     objective_functions.add(ObjectiveFcn.Lagrange.MINIMIZE_STATE, key="q", weight=1, phase=0)
-    objective_functions.add(ObjectiveFcn.Lagrange.MINIMIZE_STATE, key="q", weight=1, phase=1)
     objective_functions.add(ObjectiveFcn.Mayer.MINIMIZE_TIME, weight=1e-6, phase=0)
-    objective_functions.add(ObjectiveFcn.Mayer.MINIMIZE_TIME, weight=1e-6, phase=1)
 
     # Dynamics
     dynamics = DynamicsList()
     dynamics.add(DynamicsFcn.TORQUE_DRIVEN, with_contact=False)
-    dynamics.add(DynamicsFcn.TORQUE_DRIVEN, with_contact=False)
 
     # Path constraint
     x_bounds = BoundsList()
-    x_bounds.add(bounds=bio_model[0].bounds_from_ranges(["q", "qdot"]))
-    x_bounds.add(bounds=bio_model[1].bounds_from_ranges(["q", "qdot"]))
+    x_bounds.add(bounds=bio_model.bounds_from_ranges(["q", "qdot"]))
 
     # Phase 0
-    x_bounds[0][0, 0] = -np.pi
-    x_bounds[0][1, 0] = 0
-    x_bounds[0].min[0, 2] = np.pi - 0.1
-    x_bounds[0].max[0, 2] = np.pi + 0.1
-    x_bounds[0][1, 2] = 0
-
-    # Phase 1
-    x_bounds[1][0, 0] = -np.pi
-    x_bounds[1][1, 0] = 0
-    x_bounds[1].min[0, 2] = np.pi - 0.1
-    x_bounds[1].max[0, 2] = np.pi + 0.1
-    x_bounds[1][1, 2] = 0
+    x_bounds[0][[0, 3], 0] = -np.pi
+    x_bounds[0][[1, 4], 0] = 0
+    x_bounds[0].min[[0, 3], 2] = np.pi - 0.1
+    x_bounds[0].max[[0, 3], 2] = np.pi + 0.1
+    x_bounds[0][[1, 4], 2] = 0
 
     # Initial guess
     x_init = InitialGuessList()
-    x_init.add([0] * (bio_model[0].nb_q + bio_model[0].nb_qdot))
-    x_init.add([0] * (bio_model[1].nb_q + bio_model[1].nb_qdot))
+    x_init.add([0] * (bio_model.nb_q + bio_model.nb_qdot))
 
     # Define control path constraint
     u_bounds = BoundsList()
     u_bounds.add([tau_min] * len(tau_mappings[0]["tau"].to_first), [tau_max] * len(tau_mappings[0]["tau"].to_first))
-    # u_bounds.add([tau_min] * 2, [tau_max] * 2)
-    u_bounds.add([tau_min], [tau_max])
 
     # Control initial guess
     u_init = InitialGuessList()
     u_init.add([tau_init] * len(tau_mappings[0]["tau"].to_first))
-    u_init.add([tau_init])
-
-    phase_transitions = PhaseTransitionList()
-    phase_transitions.add(
-        PhaseTransitionFcn.DISCONTINUOUS,
-        phase_pre_idx=0,
-    )
 
     return OptimalControlProgram(
         bio_model,
@@ -109,9 +76,6 @@ def prepare_ocp(
         u_bounds=u_bounds,
         objective_functions=objective_functions,
         variable_mappings=tau_mappings,
-        node_mappings=node_mappings,
-        phase_transitions=phase_transitions,
-        parameter_mappings=parameter_mappings,
     )
 
 
@@ -127,7 +91,7 @@ def main():
     sol.graphs()
 
     # --- Show results --- #
-    show_solution_animation = False
+    show_solution_animation = True # False
     if show_solution_animation:
         q_both = np.vstack((sol.states[0]["q"], sol.states[1]["q"]))
         import bioviz

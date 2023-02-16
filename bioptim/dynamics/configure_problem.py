@@ -909,10 +909,14 @@ class ConfigureProblem:
                         legend_to_append = f"-{i}"
                         if as_states:
                             if name in ocp.nlp[i].states_phase_mapping_idx:
-                                legend_to_append = f"-{ocp.nlp[i].states_phase_mapping_idx[name].phase}"
+                                if idx not in ocp.nlp[i].states_phase_mapping_idx[name].index:
+                                    # legend_to_append = f"-{ocp.nlp[i].states_phase_mapping_idx[name].phase}"
+                                    legend_to_append = f""
                         if as_controls:
                             if name in ocp.nlp[i].controls_phase_mapping_idx:
-                                legend_to_append = f"-{ocp.nlp[i].controls_phase_mapping_idx[name].phase}"
+                                if idx in ocp.nlp[i].controls_phase_mapping_idx[name].index:
+                                    # legend_to_append = f"-{ocp.nlp[i].controls_phase_mapping_idx[name].phase}"
+                                    legend_to_append = f""
                         current_legend += legend_to_append
                     legend += [current_legend]
             return legend

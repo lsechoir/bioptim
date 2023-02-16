@@ -400,10 +400,12 @@ class PlotOcp:
                     continue
 
                 mapping = nlp.plot[variable].phase_mappings.map_idx
-                for ctr, _ in enumerate(mapping):
+                # for ctr, _ in enumerate(mapping):
+                for ctr in range(len(nlp.plot[variable].legend)):
                     ax = axes[ctr]
-                    if ctr < len(nlp.plot[variable].legend):
-                        ax.set_title(nlp.plot[variable].legend[ctr])
+                    # if ctr < len(nlp.plot[variable].legend):
+                    #TODO: do a proper mapping of the graphs to show empty graphs when necessary
+                    ax.set_title(nlp.plot[variable].legend[ctr]) # The titles are not properly set for mapped variables
                     ax.grid(**self.plot_options["grid"])
                     ax.set_xlim(0, self.t[-1][-1])
                     if nlp.plot[variable].ylim:
